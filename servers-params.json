@@ -13,15 +13,15 @@
 	},
 	{
 		"ParameterKey": "AutoScalingMinSize",
-		"ParameterValue": "1"
+		"ParameterValue": "4"
 	},
 	{
 		"ParameterKey": "AutoScalingMaxSize",
-		"ParameterValue": "1"
+		"ParameterValue": "4"
 	},
 	{
 		"ParameterKey": "AutoScalingDesired",
-		"ParameterValue": "1"
+		"ParameterValue": "4"
 	},
 	{
 		"ParameterKey": "IAMRole",

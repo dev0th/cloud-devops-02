@@ -23,4 +23,31 @@ sh delete.sh Dev0thServers
 sh delete.sh Dev0thNetwork
 ```
 
+## Result
+View result at AWS Console CloudFormation page
+
+<div align="center">
+    <img src="screenshots/output.png" />
+</div>
+
+Instance 1:
+<div align="center">
+    <img src="screenshots/web-1.PNG" />
+</div>
+
+Instance 2:
+<div align="center">
+    <img src="screenshots/web-2.PNG" />
+</div>
+
+Instance 3:
+<div align="center">
+    <img src="screenshots/web-3.PNG" />
+</div>
+
+Instance 4:
+<div align="center">
+    <img src="screenshots/web-4.PNG" />
+</div>
+
 
