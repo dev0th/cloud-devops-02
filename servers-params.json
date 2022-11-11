@@ -1,0 +1,30 @@
+[
+	{
+		"ParameterKey": "EnvironmentName",
+		"ParameterValue": "Dev0thNetwork"
+	},
+	{
+		"ParameterKey": "AMIType",
+		"ParameterValue": "ami-000340e2c761dddcd"
+	},
+	{
+		"ParameterKey": "AutoScalingInstanceType",
+		"ParameterValue": "t3.small"
+	},
+	{
+		"ParameterKey": "AutoScalingMinSize",
+		"ParameterValue": "1"
+	},
+	{
+		"ParameterKey": "AutoScalingMaxSize",
+		"ParameterValue": "1"
+	},
+	{
+		"ParameterKey": "AutoScalingDesired",
+		"ParameterValue": "1"
+	},
+	{
+		"ParameterKey": "IAMRole",
+		"ParameterValue": "EMR_EC2_DefaultRole"
+	}
+]

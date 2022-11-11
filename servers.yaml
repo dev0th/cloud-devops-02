@@ -1,0 +1,184 @@
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  AMIType:
+    Description: an AMI type ubuntu 18.04 LTS
+    Type: String
+
+  AutoScalingInstanceType:
+    Description: An instance type for auto scaling group
+    Type: String
+
+  AutoScalingMinSize:
+    Description: Minimum size of instances for the auto scaling group
+    Type: String
+    Default: "1"
+
+  AutoScalingMaxSize:
+    Description: Maximum size of instances for the auto scaling group
+    Type: String
+    Default: "1"
+
+  AutoScalingDesired:
+    Description: Desired of instances for the auto scaling group
+    Type: String
+    Default: "1"
+
+  IAMRole:
+    Description: Role for webapp
+    Type: String
+
+Resources:
+  WebServerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our hosts and SSH from local only
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      Tags: 
+        - Key: Name 
+          Value: !Sub ${EnvironmentName} - WebServerSecGroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
+  LBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to our load balancer
+      VpcId:
+        Fn::ImportValue:
+          !Sub "${EnvironmentName}-VPCID"
+      Tags: 
+        - Key: Name 
+          Value: !Sub ${EnvironmentName} - LBSecGroup
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  WebAppRoles:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref IAMRole
+
+  WebAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          sudo apt-get install unzip apache2 -y
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -o awscliv2.zip
+          sudo ./aws/install
+          rm -rf awscliv2.zip
+          cd /var/www/html
+          echo "<h3>Hostname: $(hostname -f)</h3>" > index.html
+          sudo aws s3 cp s3://dev0thdevops/archived.zip .
+          sudo unzip -o archived.zip
+          sudo chmod -R 777 index.html
+          cat archived.html >> index.html
+          sudo rm -rf archived.zip
+          sudo rm -rf archived.html 
+          sudo rm -rf __MACOSX
+          sudo chmod -R 644 index.html
+          sudo systemctl start apache2.service         
+      ImageId: !Ref AMIType
+      IamInstanceProfile: !Ref WebAppRoles
+      SecurityGroups:
+        - Ref: WebServerSecGroup
+      InstanceType: !Ref AutoScalingInstanceType
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdk"
+          Ebs:
+            VolumeSize: '10'
+
+  WebAppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 8
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 3
+      VpcId: 
+        Fn::ImportValue: !Sub ${EnvironmentName}-VPCID
+
+  WebAppAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PRIV-NETS
+      LaunchConfigurationName:
+        Ref: WebAppLaunchConfig
+      MinSize: !Ref AutoScalingMinSize
+      MaxSize: !Ref AutoScalingMaxSize
+      DesiredCapacity: !Ref AutoScalingDesired
+      TargetGroupARNs:
+        - Ref: WebAppTargetGroup
+
+  WebAppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PUB1-SN
+        - Fn::ImportValue: !Sub ${EnvironmentName}-PUB2-SN
+      SecurityGroups:
+        - Ref: LBSecGroup
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebAppTargetGroup
+      LoadBalancerArn:
+        Ref: WebAppLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  ApplicationLoadBalancerListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref WebAppTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values: [/]
+      ListenerArn: !Ref Listener
+      Priority: 1
+
+Outputs:
+  LoadBalancerDNSEntry:
+    Description: DNS for reaching LoadBalancer
+    Value: !Sub "http://${WebAppLoadBalancer.DNSName}"
+
+  
+  
